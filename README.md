@@ -131,7 +131,6 @@ Cuando el hijo termina, libera el slot del semáforo y el padre lo recolecta con
 - [ ] Logging a archivo con timestamp
 - [ ] Soporte CGI para scripts Python y Bash
 - [ ] Recarga de configuración con `SIGHUP` sin reiniciar
-- [ ] HTTPS mediante `mbedTLS` o `OpenSSL`
 
 ---
 
