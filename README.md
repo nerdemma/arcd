@@ -1,6 +1,5 @@
 # arcd
 
-<img src="docs/logo.png">
 
 Servidor HTTP ligero escrito en C, diseñado para ser simple, auditable y fácil de extender. Pensado para entornos embebidos, laboratorios de redes y aprendizaje de programación de sistemas.
 

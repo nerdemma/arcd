@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arcd — it works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --polar1: #2e3440;
+    --polar2: #3b4252;
+    --polar3: #434c5e;
+    --snow1:  #d8dee9;
+    --snow3:  #eceff4;
+    --frost2: #88c0d0;
+    --frost3: #81a1c1;
+    --aurora4: #a3be8c;
+    --aurora3: #ebcb8b;
+  }
+ 
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  body {
+    background: var(--polar1);
+    color: var(--snow1);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-image:
+      linear-gradient(rgba(136,192,208,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(136,192,208,.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+ 
+  .card {
+    background: var(--polar2);
+    border: 1px solid rgba(136,192,208,.15);
+    border-top: 3px solid var(--frost2);
+    border-radius: 6px;
+    padding: 3rem 3.5rem;
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+  }
+ 
+  .status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--aurora4);
+    margin-bottom: 1.8rem;
+    box-shadow: 0 0 12px rgba(163,190,140,.5);
+    animation: pulse 2s ease infinite;
+  }
+ 
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 12px rgba(163,190,140,.5); }
+    50%       { opacity: .6; box-shadow: 0 0 4px rgba(163,190,140,.2); }
+  }
+ 
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--snow3);
+    letter-spacing: -.02em;
+    margin-bottom: .5rem;
+  }
+ 
+  h1 span { color: var(--frost2); }
+ 
+  .subtitle {
+    font-size: .8rem;
+    font-weight: 300;
+    color: var(--snow1);
+    opacity: .5;
+    margin-bottom: 2.5rem;
+    letter-spacing: .04em;
+  }
+ 
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(136,192,208,.1);
+    margin-bottom: 2rem;
+  }
+ 
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .55rem 0;
+    border-bottom: 1px solid rgba(136,192,208,.06);
+    font-size: .78rem;
+  }
+ 
+  .info-row:last-of-type { border-bottom: none; }
+ 
+  .info-key {
+    color: var(--snow1);
+    opacity: .45;
+    text-align: left;
+  }
+ 
+  .info-val {
+    color: var(--frost2);
+    text-align: right;
+  }
+ 
+  .info-val.ok { color: var(--aurora4); }
+ 
+  footer {
+    margin-top: 2.5rem;
+    font-size: .7rem;
+    color: var(--snow1);
+    opacity: .2;
+    letter-spacing: .06em;
+  }
+</style>
+</head>
+<body>
+ 
+<div class="card">
+  <div class="status-dot"></div>
+ 
+  <h1><span>arcd</span> Is running.</h1>
+  <p class="subtitle">servidor HTTP ligero · v0.1.0</p>
+ 
+  <hr class="divider">
+ 
+  <div class="info-row">
+    <span class="info-key">estado</span>
+    <span class="info-val ok">activo</span>
+  </div>
+  <div class="info-row">
+    <span class="info-key">protocolo</span>
+    <span class="info-val">HTTP/1.0</span>
+  </div>
+  <div class="info-row">
+    <span class="info-key">directorio raíz</span>
+    <span class="info-val">./www</span>
+  </div>
+  <div class="info-row">
+    <span class="info-key">plataforma</span>
+    <span class="info-val">Linux · POSIX</span>
+  </div>
+</div>
+ 
+<footer>arcd · GPL License</footer>
+ 
+</body>
+</html>

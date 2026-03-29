@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arcd — Lightweight HTTP Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --polar1: #2e3440;
+    --polar2: #3b4252;
+    --polar3: #434c5e;
+    --polar4: #4c566a;
+    --snow1:  #d8dee9;
+    --snow2:  #e5e9f0;
+    --snow3:  #eceff4;
+    --frost1: #8fbcbb;
+    --frost2: #88c0d0;
+    --frost3: #81a1c1;
+    --frost4: #5e81ac;
+    --aurora1: #bf616a;
+    --aurora2: #d08770;
+    --aurora3: #ebcb8b;
+    --aurora4: #a3be8c;
+    --aurora5: #b48ead;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--polar1);
+    color: var(--snow1);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* ── Grid noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(136,192,208,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(136,192,208,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 3rem;
+    background: rgba(46,52,64,.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(136,192,208,.1);
+  }
+
+  .nav-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--frost2);
+    letter-spacing: .08em;
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--snow3); }
+
+  nav ul {
+    list-style: none;
+    display: flex;
+    gap: 2.5rem;
+  }
+
+  nav a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    font-weight: 400;
+    color: var(--snow1);
+    text-decoration: none;
+    letter-spacing: .06em;
+    opacity: .7;
+    transition: opacity .2s, color .2s;
+  }
+  nav a:hover { opacity: 1; color: var(--frost2); }
+
+  .nav-cta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    padding: .45rem 1.2rem;
+    border: 1px solid var(--frost2);
+    color: var(--frost2) !important;
+    border-radius: 3px;
+    opacity: 1 !important;
+    transition: background .2s !important;
+  }
+  .nav-cta:hover { background: rgba(136,192,208,.12) !important; }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 8rem 3rem 4rem;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  /* Diagonal accent */
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: -10%;
+    right: -5%;
+    width: 55%;
+    height: 130%;
+    background: linear-gradient(135deg, rgba(94,129,172,.06) 0%, rgba(136,192,208,.04) 100%);
+    clip-path: polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%);
+    pointer-events: none;
+  }
+
+  .hero-content { max-width: 680px; }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    color: var(--frost2);
+    border: 1px solid rgba(136,192,208,.3);
+    border-radius: 2px;
+    padding: .3rem .8rem;
+    margin-bottom: 2rem;
+    animation: fadeUp .6s ease both;
+  }
+  .hero-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--aurora4);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .5; transform: scale(.8); }
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.02em;
+    color: var(--snow3);
+    animation: fadeUp .6s .1s ease both;
+  }
+  h1 .accent { color: var(--frost2); }
+
+  .hero-sub {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: var(--snow1);
+    opacity: .75;
+    line-height: 1.7;
+    max-width: 520px;
+    animation: fadeUp .6s .2s ease both;
+  }
+
+  .hero-actions {
+    margin-top: 2.5rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    animation: fadeUp .6s .3s ease both;
+  }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem;
+    font-weight: 500;
+    letter-spacing: .05em;
+    padding: .75rem 1.8rem;
+    border-radius: 3px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+
+  .btn-primary {
+    background: var(--frost2);
+    color: var(--polar1);
+    box-shadow: 0 0 24px rgba(136,192,208,.2);
+  }
+  .btn-primary:hover { box-shadow: 0 0 36px rgba(136,192,208,.35); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--snow1);
+    border: 1px solid rgba(216,222,233,.2);
+  }
+  .btn-ghost:hover { border-color: rgba(216,222,233,.4); }
+
+  /* Terminal animada */
+  .hero-terminal {
+    position: absolute;
+    right: 3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: min(520px, 45vw);
+    background: var(--polar2);
+    border: 1px solid rgba(136,192,208,.15);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,.5);
+    animation: fadeUp .6s .4s ease both;
+    z-index: 2;
+  }
+
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .75rem 1rem;
+    background: var(--polar3);
+    border-bottom: 1px solid rgba(136,192,208,.1);
+  }
+  .term-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .term-dot.r { background: var(--aurora1); }
+  .term-dot.y { background: var(--aurora3); }
+  .term-dot.g { background: var(--aurora4); }
+  .term-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    color: var(--snow1);
+    opacity: .4;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .term-body {
+    padding: 1.2rem 1.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    line-height: 2;
+  }
+
+  .tl { display: block; opacity: 0; animation: fadeIn .3s ease forwards; }
+  .tl-1  { animation-delay: .8s; }
+  .tl-2  { animation-delay: 1.4s; }
+  .tl-3  { animation-delay: 2s; }
+  .tl-4  { animation-delay: 2.6s; }
+  .tl-5  { animation-delay: 3.2s; }
+  .tl-6  { animation-delay: 3.8s; }
+  .tl-7  { animation-delay: 4.4s; }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .c-dim    { color: var(--polar4); }
+  .c-frost  { color: var(--frost2); }
+  .c-snow   { color: var(--snow3); }
+  .c-ok     { color: var(--aurora4); }
+  .c-warn   { color: var(--aurora3); }
+  .c-err    { color: var(--aurora2); }
+  .c-crit   { color: var(--aurora1); }
+  .c-purple { color: var(--aurora5); }
+
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 1em;
+    background: var(--frost2);
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+    animation-delay: 5s;
+    opacity: 0;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── STATS BAR ── */
+  .stats {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    border-top: 1px solid rgba(136,192,208,.08);
+    border-bottom: 1px solid rgba(136,192,208,.08);
+  }
+
+  .stat-item {
+    flex: 1;
+    max-width: 220px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    border-right: 1px solid rgba(136,192,208,.08);
+  }
+  .stat-item:last-child { border-right: none; }
+
+  .stat-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--frost2);
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: .78rem;
+    color: var(--snow1);
+    opacity: .5;
+    margin-top: .4rem;
+    letter-spacing: .04em;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 6rem 3rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: .15em;
+    color: var(--frost2);
+    opacity: .7;
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+  }
+
+  h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 700;
+    color: var(--snow3);
+    line-height: 1.15;
+    margin-bottom: 1rem;
+  }
+
+  .section-desc {
+    font-size: 1rem;
+    color: var(--snow1);
+    opacity: .65;
+    line-height: 1.75;
+    max-width: 560px;
+    margin-bottom: 3rem;
+  }
+
+  /* ── FEATURES GRID ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px;
+    background: rgba(136,192,208,.08);
+    border: 1px solid rgba(136,192,208,.08);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .feature-card {
+    background: var(--polar1);
+    padding: 2rem;
+    transition: background .2s;
+  }
+  .feature-card:hover { background: var(--polar2); }
+
+  .feature-icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--frost2);
+    background: rgba(136,192,208,.1);
+    border: 1px solid rgba(136,192,208,.2);
+    border-radius: 3px;
+    padding: .3rem .6rem;
+    display: inline-block;
+    margin-bottom: 1.2rem;
+  }
+
+  .feature-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .95rem;
+    font-weight: 500;
+    color: var(--snow3);
+    margin-bottom: .6rem;
+  }
+
+  .feature-desc {
+    font-size: .88rem;
+    color: var(--snow1);
+    opacity: .6;
+    line-height: 1.65;
+  }
+
+  /* ── CONFIG SECTION ── */
+  .config-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .code-block {
+    background: var(--polar2);
+    border: 1px solid rgba(136,192,208,.12);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .7rem 1rem;
+    background: var(--polar3);
+    border-bottom: 1px solid rgba(136,192,208,.1);
+  }
+
+  .code-filename {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--snow1);
+    opacity: .6;
+  }
+
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    color: var(--frost3);
+    opacity: .6;
+  }
+
+  pre {
+    padding: 1.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .78rem;
+    line-height: 1.9;
+    color: var(--snow1);
+    overflow-x: auto;
+  }
+
+  .kw  { color: var(--frost3); }
+  .val { color: var(--aurora4); }
+  .cmt { color: var(--polar4); }
+  .cmd { color: var(--frost2); }
+  .str { color: var(--aurora3); }
+
+  .config-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .config-item {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem 1.2rem;
+    background: var(--polar2);
+    border: 1px solid rgba(136,192,208,.08);
+    border-radius: 5px;
+    border-left: 3px solid var(--frost2);
+  }
+
+  .config-key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+    color: var(--frost2);
+    white-space: nowrap;
+    min-width: 130px;
+  }
+
+  .config-desc {
+    font-size: .85rem;
+    color: var(--snow1);
+    opacity: .6;
+    line-height: 1.5;
+  }
+
+  /* ── HTTP STATUS ── */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .status-card {
+    padding: 1.4rem;
+    border-radius: 5px;
+    border: 1px solid;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .status-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .status-2xx { background: rgba(163,190,140,.06); border-color: rgba(163,190,140,.2); }
+  .status-2xx::before { background: var(--aurora4); }
+  .status-3xx { background: rgba(180,142,173,.06); border-color: rgba(180,142,173,.2); }
+  .status-3xx::before { background: var(--aurora5); }
+  .status-4xx { background: rgba(208,135,112,.06); border-color: rgba(208,135,112,.2); }
+  .status-4xx::before { background: var(--aurora2); }
+  .status-5xx { background: rgba(191,97,106,.06); border-color: rgba(191,97,106,.2); }
+  .status-5xx::before { background: var(--aurora1); }
+
+  .status-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: .3rem;
+  }
+  .status-2xx .status-code { color: var(--aurora4); }
+  .status-3xx .status-code { color: var(--aurora5); }
+  .status-4xx .status-code { color: var(--aurora2); }
+  .status-5xx .status-code { color: var(--aurora1); }
+
+  .status-name {
+    font-size: .82rem;
+    color: var(--snow3);
+    font-weight: 500;
+    margin-bottom: .3rem;
+  }
+  .status-desc {
+    font-size: .78rem;
+    color: var(--snow1);
+    opacity: .5;
+    line-height: 1.5;
+  }
+
+  /* ── ROADMAP ── */
+  .roadmap-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid rgba(136,192,208,.1);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .roadmap-item {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid rgba(136,192,208,.07);
+    transition: background .15s;
+  }
+  .roadmap-item:last-child { border-bottom: none; }
+  .roadmap-item:hover { background: var(--polar2); }
+
+  .roadmap-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .65rem;
+    padding: .2rem .55rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .done    { background: rgba(163,190,140,.15); color: var(--aurora4); }
+  .wip     { background: rgba(235,203,139,.15); color: var(--aurora3); }
+  .planned { background: rgba(76,86,106,.4);    color: var(--snow1); opacity: .7; }
+
+  .roadmap-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem;
+    color: var(--snow3);
+    flex: 1;
+  }
+
+  .roadmap-ver {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .68rem;
+    color: var(--frost3);
+    opacity: .5;
+  }
+
+  /* ── INSTALL ── */
+  .install-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .install-step {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    color: var(--frost2);
+    background: rgba(136,192,208,.1);
+    border: 1px solid rgba(136,192,208,.2);
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: .15rem;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--snow3);
+    margin-bottom: .6rem;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid rgba(136,192,208,.08);
+    padding: 2.5rem 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--frost2);
+  }
+
+  .footer-text {
+    font-size: .8rem;
+    color: var(--snow1);
+    opacity: .35;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .footer-links a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .75rem;
+    color: var(--snow1);
+    opacity: .4;
+    text-decoration: none;
+    transition: opacity .2s;
+  }
+  .footer-links a:hover { opacity: .9; color: var(--frost2); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .hero { flex-direction: column; padding-top: 7rem; }
+    .hero-terminal { position: relative; right: auto; top: auto; transform: none; width: 100%; margin-top: 3rem; }
+    .config-layout { grid-template-columns: 1fr; }
+    nav ul { display: none; }
+    .stats { flex-wrap: wrap; }
+    .stat-item { border-right: none; border-bottom: 1px solid rgba(136,192,208,.08); }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">arcd<span>.</span></a>
+  <ul>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#config">Configuración</a></li>
+    <li><a href="#http">HTTP</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#install" class="nav-cta">Instalar</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">v0.1.0-alpha &nbsp;·&nbsp; MIT License</div>
+    <h1>Servidor<br><span class="accent">HTTP</span><br>ligero.</h1>
+    <p class="hero-sub">
+      arcd es un servidor HTTP escrito en C puro. Sin dependencias,
+      sin magia. Configurable desde un archivo, controlado desde la terminal.
+    </p>
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">$ ./arcd</a>
+      <a href="#features" class="btn btn-ghost">Ver documentación</a>
+    </div>
+  </div>
+
+  <div class="hero-terminal">
+    <div class="term-bar">
+      <div class="term-dot r"></div>
+      <div class="term-dot y"></div>
+      <div class="term-dot g"></div>
+      <span class="term-title">arcd — terminal</span>
+    </div>
+    <div class="term-body">
+      <span class="tl tl-1"><span class="c-dim">$</span> <span class="c-frost">./arcd</span> arcd.conf</span>
+      <span class="tl tl-2"><span class="c-dim">[*] Configuración del servidor:</span></span>
+      <span class="tl tl-3"><span class="c-dim">    Puerto          :</span> <span class="c-snow">8080</span></span>
+      <span class="tl tl-3"><span class="c-dim">    Raíz web        :</span> <span class="c-snow">./www</span></span>
+      <span class="tl tl-3"><span class="c-dim">    Max conexiones  :</span> <span class="c-snow">10</span></span>
+      <span class="tl tl-4"><span class="c-frost">[*] Servidor activo en el puerto: 8080</span></span>
+      <span class="tl tl-5"><span class="c-ok">[200]</span> <span class="c-dim">GET</span> /index.html <span class="c-dim">— 192.168.1.10</span></span>
+      <span class="tl tl-6"><span class="c-err">[403]</span> <span class="c-dim">GET</span> /secret.conf <span class="c-dim">— 10.0.0.5</span></span>
+      <span class="tl tl-7"><span class="c-warn">[WARN]</span> <span class="c-dim">conexiones al límite (10/10)</span> <span class="cursor"></span></span>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat-item">
+    <div class="stat-num">&lt; 500</div>
+    <div class="stat-label">líneas de C</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">0</div>
+    <div class="stat-label">dependencias externas</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">HTTP/1.0</div>
+    <div class="stat-label">protocolo</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">POSIX</div>
+    <div class="stat-label">semáforos de concurrencia</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-tag">// características</div>
+  <h2>Diseñado para ser<br>auditable y extensible.</h2>
+  <p class="section-desc">
+    Cada componente tiene un propósito claro. El código es legible,
+    el comportamiento es predecible.
+  </p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">fork()</div>
+      <div class="feature-title">Concurrencia real</div>
+      <div class="feature-desc">Cada conexión corre en su propio proceso hijo. Un cliente lento no bloquea al resto.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">sem_wait()</div>
+      <div class="feature-title">Control de carga</div>
+      <div class="feature-desc">Semáforo POSIX limita las conexiones simultáneas. Configurable sin recompilar.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">arcd.conf</div>
+      <div class="feature-title">Configuración externa</div>
+      <div class="feature-desc">Puerto, directorio raíz y límite de conexiones en un archivo de texto plano.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">path</div>
+      <div class="feature-title">Path traversal bloqueado</div>
+      <div class="feature-desc">Peticiones con <code style="color:var(--aurora2)">../</code> son rechazadas con 403 antes de tocar el sistema de archivos.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">GET HEAD</div>
+      <div class="feature-title">Métodos HTTP</div>
+      <div class="feature-desc">Soporte para GET y HEAD. Métodos no implementados retornan 501 correctamente.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">SIGCHLD</div>
+      <div class="feature-title">Sin procesos zombie</div>
+      <div class="feature-desc">El manejador de señales recolecta hijos terminados automáticamente con waitpid.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIG -->
+<section id="config">
+  <div class="section-tag">// configuración</div>
+  <h2>Un archivo.<br>Todo el control.</h2>
+  <p class="section-desc">
+    arcd lee <code style="color:var(--frost2);font-family:'JetBrains Mono',monospace">arcd.conf</code> al iniciar.
+    Sin recompilar para cambiar el puerto o el directorio.
+  </p>
+  <div class="config-layout">
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-filename">arcd.conf</span>
+        <span class="code-lang">conf</span>
+      </div>
+      <pre><span class="cmt"># Configuración del servidor arcd</span>
+
+<span class="kw">port</span>            <span class="val">8080</span>
+<span class="kw">www</span>             <span class="val">./www</span>
+<span class="kw">max_connections</span> <span class="val">10</span></pre>
+    </div>
+    <ul class="config-list">
+      <li class="config-item">
+        <span class="config-key">port</span>
+        <span class="config-desc">Puerto TCP donde escucha el servidor. Por defecto: 80. Requiere sudo si es menor a 1024.</span>
+      </li>
+      <li class="config-item">
+        <span class="config-key">www</span>
+        <span class="config-desc">Ruta al directorio raíz de archivos web. Puede ser relativa al binario o absoluta.</span>
+      </li>
+      <li class="config-item">
+        <span class="config-key">max_connections</span>
+        <span class="config-desc">Límite de conexiones simultáneas controlado por semáforo POSIX. Por defecto: 5.</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- HTTP STATUS -->
+<section id="http">
+  <div class="section-tag">// respuestas HTTP</div>
+  <h2>El color del estado.</h2>
+  <p class="section-desc">
+    Cada código HTTP tiene un significado semántico. arcd los usa de forma estricta.
+  </p>
+  <div class="status-grid">
+    <div class="status-card status-2xx">
+      <div class="status-code">2xx</div>
+      <div class="status-name">Success</div>
+      <div class="status-desc">Archivo encontrado y servido correctamente al cliente.</div>
+    </div>
+    <div class="status-card status-3xx">
+      <div class="status-code">3xx</div>
+      <div class="status-name">Redirect</div>
+      <div class="status-desc">Redirección de tráfico. En roadmap para v0.3.</div>
+    </div>
+    <div class="status-card status-4xx">
+      <div class="status-code">4xx</div>
+      <div class="status-name">Client Error</div>
+      <div class="status-desc">404 recurso no encontrado. 403 acceso denegado o path traversal.</div>
+    </div>
+    <div class="status-card status-5xx">
+      <div class="status-code">5xx</div>
+      <div class="status-name">Server Error</div>
+      <div class="status-desc">501 método no implementado. Errores críticos de sistema.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-tag">// roadmap</div>
+  <h2>De servidor ligero<br>a plataforma robusta.</h2>
+  <p class="section-desc">
+    El objetivo es llegar a paridad de funcionalidades con servidores modernos, manteniendo el núcleo auditable.
+  </p>
+  <div class="roadmap-list">
+    <div class="roadmap-item">
+      <span class="roadmap-status done">DONE</span>
+      <span class="roadmap-name">Servidor HTTP/1.0 con fork() + semáforos POSIX</span>
+      <span class="roadmap-ver">v0.1</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status done">DONE</span>
+      <span class="roadmap-name">Configuración externa arcd.conf</span>
+      <span class="roadmap-ver">v0.1</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status done">DONE</span>
+      <span class="roadmap-name">Protección contra path traversal</span>
+      <span class="roadmap-ver">v0.1</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status wip">WIP</span>
+      <span class="roadmap-name">MIME types — CSS, JS, imágenes, PDF</span>
+      <span class="roadmap-ver">v0.2</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status wip">WIP</span>
+      <span class="roadmap-name">Logging a archivo con timestamp e IP</span>
+      <span class="roadmap-ver">v0.2</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status planned">PLANNED</span>
+      <span class="roadmap-name">Soporte CGI — Python, Bash, scripts externos</span>
+      <span class="roadmap-ver">v0.3</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status planned">PLANNED</span>
+      <span class="roadmap-name">Recarga de configuración con SIGHUP</span>
+      <span class="roadmap-ver">v0.3</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status planned">PLANNED</span>
+      <span class="roadmap-name">Lua embebido vía liblua</span>
+      <span class="roadmap-ver">v0.4</span>
+    </div>
+    <div class="roadmap-item">
+      <span class="roadmap-status planned">PLANNED</span>
+      <span class="roadmap-name">HTTPS via mbedTLS</span>
+      <span class="roadmap-ver">v1.0</span>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="section-tag">// instalación</div>
+  <h2>Tres pasos.<br>Servidor activo.</h2>
+  <p class="section-desc">
+    Sin sistema de build, sin dependencias. Solo GCC y las cabeceras estándar de Linux.
+  </p>
+  <div class="install-steps">
+    <div class="install-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Clonar el repositorio</div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">bash</span>
+          </div>
+          <pre><span class="cmd">git clone</span> <span class="str">https://github.com/usuario/arcd.git</span>
+<span class="cmd">cd</span> arcd</pre>
+        </div>
+      </div>
+    </div>
+    <div class="install-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Compilar</div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">bash</span>
+          </div>
+          <pre><span class="cmd">gcc</span> -Wall -Wextra -o arcd main.c <span class="str">-lpthread</span></pre>
+        </div>
+      </div>
+    </div>
+    <div class="install-step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Configurar y ejecutar</div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">bash</span>
+          </div>
+          <pre><span class="cmt"># Editar arcd.conf según necesidad</span>
+<span class="cmd">sudo</span> ./arcd arcd.conf</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">arcd</div>
+  <div class="footer-text">GPL License · Escrito en C · Linux/Unix</div>
+  <div class="footer-links">
+    <a href="https://github.com/nerdemma/arcd">GitHub</a>
+    <a href="#">Documentación</a>
+    <a href="#">Changelog</a>
+  </div>
+</footer>
+
+</body>
+</html>
